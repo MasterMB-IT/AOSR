@@ -10,151 +10,180 @@ REPO_NAME = st.secrets.get("REPO_NAME", "")
 FILE_PATH = "aosr_squad_db.json"
 BRANCH = "main"
 
-# --- STYLE AOSR (IL LOOK ORIGINALE) ---
-st.set_page_config(page_title="AOSR SQUAD: COMMAND CENTER", layout="wide")
+# --- STYLE AOSR ULTIMATE ---
+st.set_page_config(page_title="AOSR SQUAD HQ", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #0d1117; }
-    .stMetric { 
-        background-color: #161b22; 
-        border: 1px solid #30363d; 
-        padding: 15px; 
-        border-radius: 10px; 
-        border-top: 3px solid #f39c12; 
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+    
+    .main { background-color: #0b0e14; }
+    
+    /* Titolo Principale */
+    .main-header {
+        background: linear-gradient(90deg, #161b22 0%, #30363d 50%, #161b22 100%);
+        padding: 20px;
+        border-radius: 10px;
+        border-bottom: 4px solid #f39c12;
+        text-align: center;
+        margin-bottom: 30px;
+        box-shadow: 0px 10px 20px rgba(0,0,0,0.5);
     }
-    .section-card { 
-        padding: 25px; 
-        border-radius: 15px; 
-        border-left: 5px solid #f39c12; 
-        background-color: #1c2128; 
-        margin-bottom: 20px; 
-        box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+    .main-title {
+        font-family: 'Orbitron', sans-serif;
+        color: #f39c12;
+        font-size: 50px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 5px;
+        margin: 0;
     }
-    .main-title { 
-        color: #f39c12; 
-        font-size: 45px; 
-        font-weight: bold; 
-        text-align: center; 
-        text-transform: uppercase; 
-        letter-spacing: 2px;
-        margin-bottom: 5px;
+    
+    /* Cards Statistiche */
+    .stMetric {
+        background: rgba(22, 27, 34, 0.8);
+        border: 1px solid #f39c12;
+        border-radius: 15px !important;
+        padding: 20px !important;
+        box-shadow: 0 0 15px rgba(243, 156, 18, 0.2);
+        transition: transform 0.3s;
     }
-    .stButton>button { 
-        width: 100%; 
-        background-color: #f39c12; 
-        color: black; 
-        font-weight: bold; 
-        border-radius: 5px;
+    .stMetric:hover { transform: translateY(-5px); border-color: #ffffff; }
+
+    /* Sezioni */
+    .section-card {
+        background-color: #161b22;
+        padding: 30px;
+        border-radius: 20px;
+        border-left: 8px solid #f39c12;
+        margin-top: 20px;
+        box-shadow: 5px 5px 20px rgba(0,0,0,0.4);
     }
-    h1, h2, h3 { color: #f39c12 !important; }
-    p { color: #c9d1d9; }
+    
+    /* Bottoni e Toggle */
+    .stButton>button {
+        background: linear-gradient(45deg, #f39c12, #e67e22);
+        color: white !important;
+        font-family: 'Orbitron', sans-serif;
+        border: none;
+        font-weight: bold;
+    }
+    
+    h1, h2, h3 { font-family: 'Orbitron', sans-serif; color: #f39c12 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- ENGINE DI CARICAMENTO E SALVATAGGIO (PROTEZIONE TOTALE) ---
+# --- ENGINE ---
 def get_default_data():
     return {
-        "config": {"titolo": "AOSR SQUAD", "server": "#XXX", "motto": "Elite Soldiers, Unstoppable Force."},
-        "stats": {"Membri": "100/100", "S1_Media": "25.0M", "Power_Rank": "#1"},
-        "news": "### 📢 BENVENUTI AOSR\nClicca su EDIT per inserire le direttive.",
-        "s6_meta": "### ⚔️ SEASON 6\nStrategie in fase di elaborazione.",
-        "academy": "### 🎓 ACCADEMIA\nParametri di crescita per i ragazzi.",
-        "drone": "### 🤖 TECH DRONE\nFocus componenti."
+        "config": {"titolo": "AOSR SQUAD", "server": "#000", "motto": "HONOR AND STRENGTH"},
+        "stats": {"Membri": "100/100", "S1_Media": "25M", "Power_Rank": "#1"},
+        "news": "### 🚩 ORDINI DEL GIORNO\nIn attesa di direttive dal Comando.",
+        "s6": "### ⚔️ SEASON 6\nAnalisi tattica in corso.",
+        "academy": "### 🎓 TRAINING",
+        "drone": "### 🤖 TECH"
     }
 
 def load_db():
+    default = get_default_data()
     if GITHUB_TOKEN and REPO_NAME:
         try:
             url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}?ref={BRANCH}"
             headers = {"Authorization": f"token {GITHUB_TOKEN}"}
             res = requests.get(url, headers=headers, timeout=5)
             if res.status_code == 200:
-                content = base64.b64decode(res.json()['content']).decode('utf-8')
-                data = json.loads(content)
-                # Check chiavi mancanti per evitare KeyError
-                default = get_default_data()
+                data = json.loads(base64.b64decode(res.json()['content']).decode('utf-8'))
+                # Fix "NONE" o chiavi mancanti
+                if not data.get("config"): data["config"] = default["config"]
                 for k in default:
                     if k not in data: data[k] = default[k]
                 return data
         except: pass
-    return get_default_data()
+    return default
 
 def save_db(data):
-    if GITHUB_TOKEN and REPO_NAME:
-        try:
-            url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}"
-            headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-            r = requests.get(url, headers=headers)
-            sha = r.json().get("sha") if r.status_code == 200 else None
-            content_b64 = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
-            payload = {"message": "AOSR Squad Update", "content": content_b64, "branch": BRANCH}
-            if sha: payload["sha"] = sha
-            requests.put(url, headers=headers, json=payload, timeout=10)
-        except: st.error("Errore di sincronizzazione con GitHub.")
+    try:
+        url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+        r = requests.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        content = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
+        payload = {"message": "AOSR Update", "content": content, "branch": BRANCH}
+        if sha: payload["sha"] = sha
+        requests.put(url, headers=headers, json=payload, timeout=10)
+    except: st.error("Sync Error")
 
 if 'db' not in st.session_state:
     st.session_state.db = load_db()
 
-# --- SIDEBAR NAV ---
-st.sidebar.markdown(f"<h2 style='text-align: center;'>🛡️ {st.session_state.db['config'].get('titolo')}</h2>", unsafe_allow_html=True)
-page = st.sidebar.selectbox("MENU TATTICO", ["📡 DASHBOARD", "⚔️ SEASON 6", "🎓 ACCADEMIA", "🤖 DRONE & GEAR"])
+# --- SIDEBAR ---
+st.sidebar.image("https://img.icons8.com/isometric/100/shield.png", width=80)
+st.sidebar.markdown(f"## {st.session_state.db['config'].get('titolo', 'AOSR SQUAD')}")
+page = st.sidebar.radio("MODULI TATTICI", ["📡 DASHBOARD", "⚔️ SEASON 6", "🎓 ACCADEMIA", "🤖 TECH"])
 
-# --- FUNZIONE RENDER SEZIONI ---
-def render_section(key, title):
-    st.markdown(f"<div class='section-card'>", unsafe_allow_html=True)
-    col_t, col_e = st.columns([0.85, 0.15])
-    with col_t: st.subheader(title)
-    with col_e: edit = st.toggle("EDIT", key="t_"+key)
+# --- RENDER ---
+if page == "📡 DASHBOARD":
+    st.markdown(f"""
+        <div class='main-header'>
+            <div class='main-title'>{st.session_state.db['config'].get('titolo', 'AOSR SQUAD')}</div>
+            <div style='color: white; letter-spacing: 3px;'>{st.session_state.db['config'].get('motto')}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Metriche
+    s = st.session_state.db.get("stats", {})
+    col1, col2, col3 = st.columns(3)
+    col1.metric("MEMBRI", s.get("Membri", "100/100"))
+    col2.metric("POTENZA S1", s.get("S1_Media", "25M"))
+    col3.metric("RANK", s.get("Power_Rank", "#1"))
+
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    content = st.session_state.db.get(key, "")
+    # Sezione News Editabile
+    st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+    c_t, c_e = st.columns([0.8, 0.2])
+    with c_t: st.subheader("📢 DIRETTIVE DI GUERRA")
+    with c_e: edit = st.toggle("MODIFICA", key="edit_news")
+    
     if edit:
-        new_val = st.text_area("Update:", value=content, height=250, key="a_"+key)
-        if st.button("💾 SALVA", key="b_"+key):
-            st.session_state.db[key] = new_val
+        val = st.text_area("Update", value=st.session_state.db.get("news", ""), height=200)
+        if st.button("PUBBLICA ORDINI"):
+            st.session_state.db["news"] = val
             save_db(st.session_state.db)
             st.rerun()
     else:
-        st.markdown(content)
+        st.markdown(st.session_state.db.get("news"))
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- PAGINE ---
-if page == "📡 DASHBOARD":
-    st.markdown(f"<div class='main-title'>{st.session_state.db['config'].get('titolo')}</div>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; color: #888;'>{st.session_state.db['config'].get('motto')}</p>", unsafe_allow_html=True)
-
-    # Expander per modificare le stats (Membri, Potenza, Rank)
-    with st.expander("⚙️ PANNELLO DI CONTROLLO STATISTICHE"):
-        c_ed1, c_ed2, c_ed3 = st.columns(3)
-        stats = st.session_state.db.get("stats", {})
-        new_m = c_ed1.text_input("Membri", stats.get("Membri", "100"))
-        new_p = c_ed2.text_input("Potenza S1", stats.get("S1_Media", "20M"))
-        new_r = c_ed3.text_input("Rank Server", stats.get("Power_Rank", "#1"))
-        if st.button("AGGIORNA NUMERI"):
-            st.session_state.db["stats"] = {"Membri": new_m, "S1_Media": new_p, "Power_Rank": new_r}
+    # Pannello Configurazione (Per cambiare Titolo, Motto, etc)
+    with st.expander("🛠️ IMPOSTAZIONI AVANZATE SQUADRA"):
+        c1, c2 = st.columns(2)
+        new_title = c1.text_input("Nome Squadra", st.session_state.db['config'].get('titolo'))
+        new_motto = c2.text_input("Motto", st.session_state.db['config'].get('motto'))
+        c3, c4, c5 = st.columns(3)
+        nm = c3.text_input("Membri", s.get("Membri"))
+        np = c4.text_input("Potenza", s.get("S1_Media"))
+        nr = c5.text_input("Rank", s.get("Power_Rank"))
+        
+        if st.button("SALVA CONFIGURAZIONE GLOBALE"):
+            st.session_state.db["config"] = {"titolo": new_title, "motto": new_motto}
+            st.session_state.db["stats"] = {"Membri": nm, "S1_Media": np, "Power_Rank": nr}
             save_db(st.session_state.db)
             st.rerun()
 
-    st.divider()
-    
-    # Metriche visive
-    stats = st.session_state.db.get("stats", {})
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Membri Alleanza", stats.get("Membri", "N/A"))
-    col2.metric("Media Potenza S1", stats.get("S1_Media", "N/A"))
-    col3.metric("Rank Server", stats.get("Power_Rank", "N/A"))
-    
-    st.divider()
-    render_section("news", "📢 DIRETTIVE DI GUERRA")
-
-elif page == "⚔️ SEASON 6":
-    st.title("⚔️ Strategia Season 6")
-    render_section("s6_meta", "🔥 Meta e Nuovi Eroi")
-
-elif page == "🎓 ACCADEMIA":
-    st.title("🎓 Centro Addestramento")
-    render_section("academy", "📝 Crescita Ragazzi")
-
-elif page == "🤖 DRONE & GEAR":
-    st.title("🤖 Reparto Tecnico")
-    render_section("drone", "🛠️ Drone & Equipaggiamento")
+else:
+    # Struttura semplificata per le altre pagine
+    key_map = {"⚔️ SEASON 6": "s6", "🎓 ACCADEMIA": "academy", "🤖 TECH": "drone"}
+    k = key_map[page]
+    st.title(page)
+    st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+    edit = st.toggle("EDIT")
+    if edit:
+        val = st.text_area("Update content", value=st.session_state.db.get(k, ""), height=400)
+        if st.button("SALVA"):
+            st.session_state.db[k] = val
+            save_db(st.session_state.db)
+            st.rerun()
+    else:
+        st.markdown(st.session_state.db.get(k))
+    st.markdown("</div>", unsafe_allow_html=True)

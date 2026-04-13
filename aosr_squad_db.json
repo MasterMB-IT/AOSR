@@ -1,0 +1,22 @@
+{
+    "config": {
+        "titolo": "AOSR SQUAD",
+        "motto": "Elite Soldiers"
+    },
+    "box1": {
+        "label": "MEMBRI",
+        "value": "100/100"
+    },
+    "box2": {
+        "label": "POTENZA S1",
+        "value": "55M"
+    },
+    "box3": {
+        "label": "RANK",
+        "value": "#1"
+    },
+    "news": "### \ud83d\udea9 ORDINI DEL GIORNO\nBenvenuti al Comando.",
+    "s6": "### \u2694\ufe0f SEASON 6",
+    "academy": "### \ud83c\udf93 TRAINING",
+    "drone": "### \ud83e\udd16 TECH"
+}

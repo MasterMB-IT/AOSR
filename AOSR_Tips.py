@@ -10,111 +10,88 @@ REPO_NAME = st.secrets.get("REPO_NAME", "")
 FILE_PATH = "aosr_squad_db.json"
 BRANCH = "main"
 
-# --- STYLE AOSR (Invariato) ---
-st.set_page_config(page_title="AOSR SQUAD: COMMAND CENTER", layout="wide")
-st.markdown("""
-    <style>
-    .main { background-color: #0d1117; }
-    .stMetric { background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 10px; border-top: 3px solid #f39c12; }
-    .section-card { padding: 25px; border-radius: 15px; border-left: 5px solid #f39c12; background-color: #1c2128; margin-bottom: 20px; }
-    .main-title { color: #f39c12; font-size: 40px; font-weight: bold; text-align: center; text-transform: uppercase; }
-    h1, h2, h3 { color: #f39c12 !important; }
-    </style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="AOSR SQUAD: RECOVERY", layout="wide")
 
-# --- VALORI DI DEFAULT (IL PARACADUTE) ---
-def get_emergency_defaults():
+# --- DATABASE DI EMERGENZA (Se GitHub fallisce, usa questo) ---
+def get_default_data():
     return {
-        "config": {"titolo_display": "AOSR SQUAD", "server": "#XXX", "motto": "Sincronizzazione in corso..."},
-        "stats": {"Membri": "N/D", "S1_Media": "N/D", "Power_Rank": "N/D"},
-        "news": "⚠️ L'app è in modalità emergenza. Controlla la connessione GitHub.",
+        "config": {"titolo_display": "AOSR SQUAD", "server": "#XXX", "motto": "Elite Soldiers"},
+        "stats": {"Membri": "0", "S1_Media": "0", "Power_Rank": "#0"},
+        "news": "Dati resettati. Clicca EDIT per scrivere.",
         "s6_meta": "", "academy": "", "drone": ""
     }
 
-# --- LOGICA DI CARICAMENTO INTEGRATA ---
+# --- FUNZIONE DI CARICAMENTO SICURA AL 100% ---
 def load_db():
-    defaults = get_emergency_defaults()
-    
-    # 1. Prova a scaricare l'ultima versione da GitHub per essere sempre aggiornati
+    # Prova GitHub
     if GITHUB_TOKEN and REPO_NAME:
         try:
             url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}?ref={BRANCH}"
             headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-            response = requests.get(url, headers=headers, timeout=5)
-            
-            if response.status_code == 200:
-                content = base64.b64decode(response.json()['content']).decode('utf-8')
-                data = json.loads(content)
-                # Assicura che le chiavi essenziali esistano
-                for k, v in defaults.items():
-                    if k not in data: data[k] = v
-                return data
-        except Exception as e:
-            st.warning(f"Sincronizzazione Cloud fallita. Caricamento dati locali. (Errore: {e})")
-
-    # 2. Se GitHub fallisce, prova a leggere il file locale
-    if os.path.exists(FILE_PATH):
-        try:
-            with open(FILE_PATH, "r") as f:
-                return json.load(f)
+            res = requests.get(url, headers=headers, timeout=5)
+            if res.status_code == 200:
+                content = base64.b64decode(res.json()['content']).decode('utf-8')
+                return json.loads(content)
         except:
-            return defaults
-            
-    return defaults
+            pass
+    return get_default_data()
 
-# --- FUNZIONE SALVATAGGIO REMOTO ---
-def save_to_github(data):
-    if not GITHUB_TOKEN or not REPO_NAME:
-        return False
-    
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-    
-    try:
-        r = requests.get(url, headers=headers, timeout=5)
-        sha = r.json().get("sha") if r.status_code == 200 else None
-        content_base64 = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
-        
-        payload = {"message": "Update AOSR Database", "content": content_base64, "branch": BRANCH}
-        if sha: payload["sha"] = sha
-        
-        res = requests.put(url, headers=headers, json=payload, timeout=10)
-        return res.status_code in [200, 201]
-    except:
-        return False
+# --- FUNZIONE DI SALVATAGGIO ---
+def save_db(data):
+    # Salva su GitHub
+    if GITHUB_TOKEN and REPO_NAME:
+        try:
+            url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}"
+            headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+            r = requests.get(url, headers=headers)
+            sha = r.json().get("sha") if r.status_code == 200 else None
+            content_b64 = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
+            payload = {"message": "Recovery Update", "content": content_b64, "branch": BRANCH}
+            if sha: payload["sha"] = sha
+            requests.put(url, headers=headers, json=payload, timeout=10)
+        except:
+            st.error("Errore critico durante il salvataggio su GitHub.")
 
-# --- GESTIONE SESSIONE ---
+# Inizializza sessione
 if 'db' not in st.session_state:
     st.session_state.db = load_db()
 
-def trigger_save():
-    # Salva locale
-    with open(FILE_PATH, "w") as f:
-        json.dump(st.session_state.db, f, indent=4)
-    # Salva remoto
-    if save_to_github(st.session_state.db):
-        st.success("✅ Dati salvati su GitHub!")
-    else:
-        st.error("❌ Errore nel salvataggio remoto. I dati sono solo locali.")
-
 # --- INTERFACCIA ---
-page = st.sidebar.selectbox("MODULO TATTICO", ["📡 DASHBOARD", "⚔️ SEASON 6", "🎓 ACCADEMIA", "🤖 DRONE & GEAR"])
+st.sidebar.title("🛡️ AOSR COMMAND")
+page = st.sidebar.selectbox("MODULO TATTICO", ["📡 DASHBOARD", "⚔️ SEASON 6", "🎓 ACCADEMIA"])
 
-def render_section(key, title):
-    st.markdown(f"<div class='section-card'>", unsafe_allow_html=True)
-    col_t, col_e = st.columns([0.8, 0.2])
-    with col_t: st.subheader(title)
-    with col_e: edit = st.toggle("EDIT", key="t_"+key)
+if page == "📡 DASHBOARD":
+    st.title("AOSR SQUAD - DASHBOARD")
     
-    if edit:
-        new_content = st.text_area("Update", value=st.session_state.db.get(key, ""), height=250, key="a_"+key)
-        if st.button("SALVA", key="b_"+key):
-            st.session_state.db[key] = new_content
-            trigger_save()
+    # Sezione Statistiche Editabile
+    with st.expander("⚙️ MODIFICA STATISTICHE (Sblocca schermata)"):
+        c1, c2, c3 = st.columns(3)
+        # Usiamo .get() per evitare il KeyError che vedi nelle tue foto
+        stats = st.session_state.db.get("stats", {})
+        m = c1.text_input("Membri", stats.get("Membri", "100"))
+        p = c2.text_input("Potenza", stats.get("S1_Media", "20M"))
+        r = c3.text_input("Rank", stats.get("Power_Rank", "#1"))
+        
+        if st.button("SALVA STATISTICHE"):
+            st.session_state.db["stats"] = {"Membri": m, "S1_Media": p, "Power_Rank": r}
+            save_db(st.session_state.db)
+            st.rerun()
+
+    # Visualizzazione
+    stats = st.session_state.db.get("stats", {})
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Membri", stats.get("Membri", "N/A"))
+    col2.metric("Potenza", stats.get("S1_Media", "N/A"))
+    col3.metric("Rank", stats.get("Power_Rank", "N/A"))
+
+    # Sezione News
+    st.divider()
+    edit_news = st.toggle("EDIT NEWS")
+    if edit_news:
+        new_news = st.text_area("Testo:", st.session_state.db.get("news", ""))
+        if st.button("SALVA NEWS"):
+            st.session_state.db["news"] = new_news
+            save_db(st.session_state.db)
             st.rerun()
     else:
-        st.markdown(st.session_state.db.get(key, ""))
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# (Seguono le pagine DASHBOARD, SEASON 6, ecc. usando render_section)
-# ... [Inserisci qui la logica delle pagine che avevamo già fatto]
+        st.markdown(st.session_state.db.get("news", "Nessuna direttiva."))

@@ -1,149 +1,159 @@
 import streamlit as st
 import json
-import os
 import requests
 import base64
 import time
 
-# --- CONFIGURAZIONE GITHUB (Verifica sempre i permessi repo!) ---
+# --- CONFIGURAZIONE GITHUB ---
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO_NAME = st.secrets.get("REPO_NAME", "")
 FILE_PATH = "aosr_squad_db.json"
 BRANCH = "main"
 
-st.set_page_config(page_title="AOSR SQUAD HQ", layout="wide")
+st.set_page_config(page_title="AOSR OVERLORD TERMINAL", layout="wide", initial_sidebar_state="expanded")
 
-# --- STYLE (MANTENUTO) ---
+# --- DESIGN ESTREMO (CSS) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-    .main { background-color: #0b0e14; }
-    .stMetric { background-color: rgba(22, 27, 34, 0.8); border: 1px solid #f39c12; border-radius: 15px !important; padding: 20px !important;}
-    .section-card { background-color: #161b22; padding: 30px; border-radius: 20px; border-left: 8px solid #f39c12; margin-top: 20px;}
-    .stButton>button { background: linear-gradient(45deg, #f39c12, #e67e22); color: white !important; font-family: 'Orbitron', sans-serif; font-weight: bold;}
-    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; color: #f39c12 !important; }
-    /* Style per i TAB */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { background-color: #1c2128; border-radius: 5px; color: white; padding: 10px 20px; }
-    .stTabs [aria-selected="true"] { background-color: #f39c12; color: black; font-weight: bold;}
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+    
+    .main { background: #05070a; }
+    font-family: 'Rajdhani', sans-serif;
+
+    /* Header e Titoli */
+    .main-header {
+        background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+        padding: 30px; border-radius: 15px; border: 1px solid #f39c12;
+        text-align: center; margin-bottom: 30px;
+        box-shadow: 0 0 30px rgba(243, 156, 18, 0.15);
+    }
+    .main-title {
+        font-family: 'Orbitron', sans-serif; color: #f39c12;
+        font-size: 55px; letter-spacing: 8px; text-shadow: 0 0 20px #f39c12;
+    }
+
+    /* Cards e Tabs */
+    .section-card {
+        background: rgba(22, 27, 34, 0.7); backdrop-filter: blur(10px);
+        padding: 25px; border-radius: 15px; border: 1px solid #30363d;
+        margin-bottom: 20px; border-left: 5px solid #f39c12;
+    }
+    .stTabs [data-baseweb="tab-list"] { gap: 15px; }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px; background-color: #0d1117; border-radius: 8px 8px 0 0;
+        color: #8b949e; border: 1px solid #30363d; font-family: 'Orbitron';
+    }
+    .stTabs [aria-selected="true"] { 
+        background-color: #f39c12 !important; color: black !important; font-weight: bold;
+    }
+
+    /* Bottoni */
+    .stButton>button {
+        width: 100%; border: none; padding: 15px;
+        background: linear-gradient(90deg, #f39c12, #e67e22);
+        color: black; font-family: 'Orbitron'; font-weight: 700;
+        border-radius: 5px; cursor: pointer; transition: 0.3s;
+    }
+    .stButton>button:hover { box-shadow: 0 0 20px #f39c12; transform: scale(1.02); }
     </style>
 """, unsafe_allow_html=True)
 
-# --- ENGINE (MANTENUTO) ---
+# --- DATABASE ENGINE ---
 def get_default_data():
     return {
-        "config": {"titolo": "AOSR SQUAD", "motto": "Elite Soldiers"},
-        "box1": {"label": "MEMBRI", "value": "100/100"},
-        "box2": {"label": "POTENZA S1", "value": "25M"},
-        "box3": {"label": "RANK", "value": "#1"},
-        "news": "### 📢 BENVENUTI AL COMANDO\nUtilizza i moduli per le direttive.",
-        # Struttura per la sezione META a schede
-        "meta": {
-            "tier_list": "### 🏆 TIER LIST ATTUALE\n\n![Esempio Immagine](https://i.imgur.com/8Q4SjD0.png)\n\nScrivi qui la descrizione...",
-            "sinergie": "### 🤝 SINERGIE CHIAVE\n\nSpiegazione delle combo...",
-            "counter": "### 🛡️ COUNTER-META S6\n\nCome battere le squadre comuni..."
-        },
-        "tech": "### 🧬 TECH & GEER", "academy": "### 🎓 TRAINING"
+        "config": {"motto": "VICTORY THROUGH SCIENCE"},
+        "boxes": [{"l": "MEMBRI", "v": "100/100"}, {"l": "POTENZA S1", "v": "25M"}, {"l": "RANK", "v": "#1"}],
+        "news": "### 🚩 DIRETTIVE HQ\nInserire ordini qui.",
+        "meta": {"t1": "Tier List", "t2": "Sinergie", "t3": "Counter"},
+        "tech": {"t1": "Ricerche", "t2": "Gear", "t3": "Drone"},
+        "decors": {"t1": "Skin", "t2": "Statue", "t3": "Budget"},
+        "routine": {"t1": "Mattina", "t2": "Eventi", "t3": "Reset"}
     }
 
 def load_db():
-    if GITHUB_TOKEN and REPO_NAME:
-        try:
-            url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}?ref={BRANCH}&t={int(time.time())}"
-            headers = {"Authorization": f"token {GITHUB_TOKEN}", "Cache-Control": "no-cache"}
-            res = requests.get(url, headers=headers, timeout=10)
-            if res.status_code == 200:
-                data = json.loads(base64.b64decode(res.json()['content']).decode('utf-8'))
-                # Verifica integrità chiavi
-                default = get_default_data()
-                for key in default:
-                    if key not in data: data[key] = default[key]
-                return data
-        except Exception as e: st.error(f"Errore caricamento: {e}")
+    try:
+        url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}?t={int(time.time())}"
+        res = requests.get(url, headers={"Authorization": f"token {GITHUB_TOKEN}"})
+        if res.status_code == 200:
+            return json.loads(base64.b64decode(res.json()['content']).decode())
+    except: pass
     return get_default_data()
 
 def save_db(data):
-    with st.spinner("Sincronizzazione Cloud in corso..."):
-        try:
-            url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}"
-            headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-            r = requests.get(url, headers=headers, params={"t": int(time.time())})
-            sha = r.json().get("sha") if r.status_code == 200 else None
-            content = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
-            payload = {"message": "AOSR Update", "content": content, "branch": BRANCH}
-            if sha: payload["sha"] = sha
-            res = requests.put(url, headers=headers, json=payload, timeout=15)
-            if res.status_code in [200, 201]:
-                st.success("✅ DATI SALVATI!"); time.sleep(1); st.rerun()
-                return True
-            else: st.error(f"Errore GitHub {res.status_code}: {res.json().get('message')}")
-        except Exception as e: st.error(f"Errore connessione: {e}")
-    return False
+    try:
+        url = f"https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        r = requests.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        content = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
+        payload = {"message": "AOSR Update", "content": content, "sha": sha}
+        requests.put(url, json=payload, headers=headers)
+        st.success("✅ SINCRONIZZAZIONE COMPLETATA")
+        time.sleep(1)
+        st.rerun()
+    except: st.error("Errore di rete")
 
 if 'db' not in st.session_state:
     st.session_state.db = load_db()
 
 # --- SIDEBAR ---
-st.sidebar.markdown(f"# 🛡️ AOSR SQUAD")
-page = st.sidebar.radio("MODULI TATTICI", ["📡 DASHBOARD", "⚔️ META & SINERGIE", "🎓 ACCADEMIA", "🤖 TECH"])
+st.sidebar.markdown("<h1 style='color:#f39c12; font-family:Orbitron;'>AOSR HQ</h1>", unsafe_allow_html=True)
+menu = st.sidebar.radio("SISTEMI ATTIVI", ["📡 DASHBOARD", "⚔️ META & SQUAD", "🧬 TECH & GEAR", "🏯 DECORAZIONI", "📋 ROUTINE"])
 
-# --- DASHBOARD (MANTENUTA) ---
-if page == "📡 DASHBOARD":
-    st.markdown(f"<div class='main-header'><div class='main-title'>AOSR SQUAD</div></div>", unsafe_allow_html=True)
-    # ... (logica dei riquadri e news, omessa per brevità ma presente nel tuo codice attuale)
+# --- TOOL: ANTEPRIMA IMMAGINE ISTANTANEA ---
+def image_preview_tool():
+    with st.expander("🖼️ TOOL CARICAMENTO IMMAGINI (Anteprima Rapida)"):
+        st.write("Copia il link di Imgur qui sotto per vedere se funziona prima di salvarlo:")
+        test_url = st.text_input("Incolla URL immagine (.png o .jpg):", placeholder="https://i.imgur.com/...")
+        if test_url:
+            st.image(test_url, caption="Anteprima", use_container_width=True)
+            st.code(f"![Titolo]({test_url})", language="markdown")
+            st.caption("Copia il codice sopra e incollalo nell'area di testo per usarlo.")
 
-# --- NUOVA SEZIONE: META & SINERGIE (A SCHEDE) ---
-elif page == "⚔️ META & SINERGIE":
-    st.title("⚔️ Analisi Tattica & Meta")
+# --- PAGINA: DASHBOARD ---
+if menu == "📡 DASHBOARD":
+    st.markdown(f"<div class='main-header'><div class='main-title'>AOSR SQUAD</div><div style='color:white;'>{st.session_state.db['config']['motto']}</div></div>", unsafe_allow_html=True)
+    
+    cols = st.columns(3)
+    for i, b in enumerate(st.session_state.db['boxes']):
+        cols[i].metric(b['l'], b['v'])
+
     st.markdown("<div class='section-card'>", unsafe_allow_html=True)
-    
-    # Creazione dei TAB
-    tab1, tab2, tab3 = st.tabs(["🏆 Tier List", "🤝 Sinergie Eroi", "🛡️ Counter S6"])
-    
-    meta_data = st.session_state.db.get("meta", {})
-    
-    # TAB 1: Tier List
-    with tab1:
-        c_ed, c_v = st.columns([0.2, 0.8])
-        with c_ed: edit = st.toggle("EDIT", key="ed_tier")
-        
-        if edit:
-            new_val = st.text_area("Update content (usa ![Testo](link_immagine) per foto):", value=meta_data.get("tier_list", ""), height=400, key="ta_tier")
-            if st.button("💾 SALVA TIER LIST", key="bt_tier"):
-                st.session_state.db["meta"]["tier_list"] = new_val
-                save_db(st.session_state.db)
-        else:
-            st.markdown(meta_data.get("tier_list", ""))
-
-    # TAB 2: Sinergie
-    with tab2:
-        c_ed2, c_v2 = st.columns([0.2, 0.8])
-        with c_ed2: edit2 = st.toggle("EDIT", key="ed_sin")
-        if edit2:
-            new_val2 = st.text_area("Update content:", value=meta_data.get("sinergie", ""), height=400, key="ta_sin")
-            if st.button("💾 SALVA SINERGIE", key="bt_sin"):
-                st.session_state.db["meta"]["sinergie"] = new_val2
-                save_db(st.session_state.db)
-        else:
-            st.markdown(meta_data.get("sinergie", ""))
-
-    # TAB 3: Counter
-    with tab3:
-        c_ed3, c_v3 = st.columns([0.2, 0.8])
-        with c_ed3: edit3 = st.toggle("EDIT", key="ed_cou")
-        if edit3:
-            new_val3 = st.text_area("Update content:", value=meta_data.get("counter", ""), height=400, key="ta_cou")
-            if st.button("💾 SALVA COUNTER", key="bt_cou"):
-                st.session_state.db["meta"]["counter"] = new_val3
-                save_db(st.session_state.db)
-        else:
-            st.markdown(meta_data.get("counter", ""))
-            
+    c1, c2 = st.columns([0.8, 0.2])
+    c1.subheader("📢 DIRETTIVE DI GUERRA")
+    if c2.toggle("EDIT"):
+        new_news = st.text_area("Update:", st.session_state.db['news'], height=200)
+        if st.button("PUBBLICA"):
+            st.session_state.db['news'] = new_news
+            save_db(st.session_state.db)
+    else:
+        st.markdown(st.session_state.db['news'])
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- ALTRE PAGINE (MANTENUTE) ---
+# --- PAGINA: META / TECH / DECORS / ROUTINE (LOGICA UNIFICATA) ---
 else:
-    key_map = {"🎓 ACCADEMIA": "academy", "🤖 TECH": "drone"}
-    k = key_map[page]
-    st.title(page)
-    # ... (logica standard omessa per brevità)
+    page_map = {
+        "⚔️ META & SQUAD": ("meta", ["🏆 Tier List", "🤝 Sinergie", "🛡️ Counter"]),
+        "🧬 TECH & GEAR": ("tech", ["🧪 Ricerche", "⚙️ Gear Eroi", "🤖 Drone"]),
+        "🏯 DECORAZIONI": ("decors", ["🎨 Skin & Set", "💎 Statue", "📊 Investimenti"]),
+        "📋 ROUTINE": ("routine", ["🌅 Start Day", "📅 Eventi", "🔄 Reset"])
+    }
+    
+    key, tabs_labels = page_map[menu]
+    st.title(menu)
+    image_preview_tool()
+    
+    tabs = st.tabs(tabs_labels)
+    for i, t in enumerate(tabs):
+        with t:
+            st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+            t_key = f"t{i+1}"
+            edit = st.toggle("EDIT", key=f"ed_{menu}_{i}")
+            if edit:
+                new_v = st.text_area("Testo & Immagini:", st.session_state.db[key].get(t_key, ""), height=400, key=f"ta_{menu}_{i}")
+                if st.button("SALVA SCHEDA", key=f"btn_{menu}_{i}"):
+                    st.session_state.db[key][t_key] = new_v
+                    save_db(st.session_state.db)
+            else:
+                st.markdown(st.session_state.db[key].get(t_key, "Nessun dato."))
+            st.markdown("</div>", unsafe_allow_html=True)

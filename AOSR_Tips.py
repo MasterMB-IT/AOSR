@@ -8,65 +8,121 @@ import time
 # --- CONFIGURAZIONE GITHUB ---
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO_NAME = st.secrets.get("REPO_NAME", "")
-DB_FILE = "aosr_layout_db.json"
+DB_FILE = "aosr_overlord_db.json"
+BRANCH = "main"
 
-st.set_page_config(page_title="AOSR CUSTOM BUILDER", layout="wide")
+# --- CONFIGURAZIONE PAGINA ---
+st.set_page_config(page_title="AOSR ARCHITECT", layout="wide", initial_sidebar_state="collapsed")
 
-# --- DATABASE LOGIC ---
-def load_layout():
+# --- UI CSS CUSTOM ---
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+    .main { background: #05070a; font-family: 'Rajdhani', sans-serif; }
+    .stApp { background: #05070a; }
+    /* Nascondi header standard per più spazio */
+    header {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
+# --- CORE ENGINE ---
+def load_data():
     try:
         url = f"https://api.github.com/repos/{REPO_NAME}/contents/{DB_FILE}?t={int(time.time())}"
         res = requests.get(url, headers={"Authorization": f"token {GITHUB_TOKEN}"})
         if res.status_code == 200:
             return json.loads(base64.b64decode(res.json()['content']).decode())
     except: pass
-    # Layout di default se il file non esiste
-    return [
-        {"i": "meta", "x": 0, "y": 0, "w": 6, "h": 4},
-        {"i": "tech", "x": 6, "y": 0, "w": 6, "h": 4},
-        {"i": "routine", "x": 0, "y": 4, "w": 12, "h": 3},
-    ]
+    return {
+        "layout": [
+            {"i": "news", "x": 0, "y": 0, "w": 12, "h": 2},
+            {"i": "meta", "x": 0, "y": 2, "w": 6, "h": 4},
+            {"i": "tech", "x": 6, "y": 2, "w": 6, "h": 4},
+            {"i": "routine", "x": 0, "y": 6, "w": 12, "h": 3}
+        ],
+        "content": {
+            "news": "### 📡 TERMINALE ATTIVO\nBenvenuto Comandante. Trascina le card per configurare la dashboard.",
+            "meta": "### ⚔️ META SQUAD\nIncolla qui le tue sinergie.",
+            "tech": "### 🧬 TECNOLOGIE\nPianificazione ricerche.",
+            "routine": "### 📋 ROUTINE\nChecklist giornaliera."
+        }
+    }
 
-def save_layout(layout):
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{DB_FILE}"
+def save_all(data):
+    try:
+        url = f"https://api.github.com/repos/{REPO_NAME}/contents/{DB_FILE}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        r = requests.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        content = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
+        payload = {"message": "AOSR Architect Layout Update", "content": content, "sha": sha}
+        requests.put(url, json=payload, headers=headers)
+        st.toast("🛰️ CONFIGURAZIONE SALVATA NEL CLOUD", icon="✅")
+    except: st.error("Errore salvataggio")
+
+def upload_img(file):
+    path = f"img/{file.name.replace(' ', '_')}"
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    r = requests.get(url, headers=headers)
-    sha = r.json().get("sha") if r.status_code == 200 else None
-    content = base64.b64encode(json.dumps(layout).encode()).decode()
-    payload = {"message": "Save Layout", "content": content, "sha": sha}
-    requests.put(url, json=payload, headers=headers)
-    st.toast("📐 Layout salvato nel Cloud!")
+    res = requests.get(url, headers=headers)
+    sha = res.json().get("sha") if res.status_code == 200 else None
+    content = base64.b64encode(file.getvalue()).decode()
+    payload = {"message": "Upload Img", "content": content, "sha": sha}
+    r = requests.put(url, json=payload, headers=headers)
+    if r.status_code in [200, 201]:
+        return f"https://raw.githubusercontent.com/{REPO_NAME}/{BRANCH}/{path}"
+    return None
 
-# --- UI ---
-st.title("🛡️ AOSR ESTRATEGIC BUILDER")
-st.caption("Trascina l'angolo in basso a destra per ridimensionare o sposta le card col mouse.")
+# --- STATE ---
+if "db" not in st.session_state:
+    st.session_state.db = load_data()
 
-if "layout" not in st.session_state:
-    st.session_state.layout = load_layout()
+# --- HEADER SUPERIORE ---
+with st.container():
+    c1, c2, c3 = st.columns([2, 1, 1])
+    with c1:
+        st.markdown("<h1 style='color:#f39c12; font-family:Orbitron; margin:0;'>AOSR OVERLORD <span style='font-size:15px; color:white;'>ARCHITECT v3</span></h1>", unsafe_allow_html=True)
+    with c2:
+        if st.button("💾 SALVA LAYOUT E CONTENUTI", use_container_width=True):
+            save_all(st.session_state.db)
+    with c3:
+        with st.popover("📤 CARICA IMMAGINE"):
+            f = st.file_uploader("Screenshot", type=['png','jpg'])
+            if f:
+                link = upload_img(f)
+                if link: st.code(f"![Img]({link})")
 
-# Bottone per salvare la posizione attuale
-if st.button("💾 BLOCCA POSIZIONI E SALVA SCHEMA"):
-    save_layout(st.session_state.layout)
-
-# --- AREA DRAG & DROP ---
+# --- DASHBOARD DINAMICA ---
 with elements("dashboard"):
-    # Configurazione della griglia (12 colonne totali)
-    with dashboard.Grid(st.session_state.layout, onLayoutChange=lambda l: st.session_state.update({"layout": l})):
+    # Layout dinamico: onLayoutChange aggiorna lo stato ma non salva su GitHub (serve il tasto Save)
+    with dashboard.Grid(st.session_state.db["layout"], onLayoutChange=lambda l: st.session_state.db.update({"layout": l})):
         
-        # CARD: META
-        with mui.Card(key="meta", sx={"display": "flex", "flexDirection": "column", "bgcolor": "#161b22", "border": "1px solid #f39c12"}):
-            mui.CardHeader(title="⚔️ META SQUAD", sx={"color": "#f39c12"})
-            with mui.CardContent(sx={"flex": 1, "overflow": "auto", "color": "white"}):
-                html.div("Qui puoi inserire le tue sinergie. Sposta questa card dove preferisci.")
+        # DEFINIZIONE DELLE CARD
+        cards = [
+            ("news", "📡 COMANDI RAPIDI", "#f39c12"),
+            ("meta", "⚔️ ANALISI META", "#e74c3c"),
+            ("tech", "🧬 RAMO TECNOLOGICO", "#3498db"),
+            ("routine", "📋 ROUTINE CRESCITA", "#2ecc71")
+        ]
 
-        # CARD: TECH
-        with mui.Card(key="tech", sx={"display": "flex", "flexDirection": "column", "bgcolor": "#161b22", "border": "1px solid #f39c12"}):
-            mui.CardHeader(title="🧬 TECNOLOGIE", sx={"color": "#f39c12"})
-            with mui.CardContent(sx={"flex": 1, "overflow": "auto", "color": "white"}):
-                html.div("Pianificazione ricerche. Ridimensionami per vedere più dettagli.")
+        for key, title, color in cards:
+            with mui.Card(key=key, sx={
+                "display": "flex", "flexDirection": "column", 
+                "bgcolor": "#161b22", "border": f"1px solid {color}",
+                "borderRadius": "15px", "boxShadow": f"0 0 15px {color}33"
+            }):
+                mui.CardHeader(
+                    title=title, 
+                    titleTypographyProps={"variant": "h6", "fontFamily": "Orbitron", "color": color},
+                    sx={"padding": "10px 20px", "borderBottom": f"1px solid {color}33"}
+                )
+                
+                with mui.CardContent(sx={"flex": 1, "overflow": "auto", "padding": "20px"}):
+                    # Area di Editing dentro la card
+                    if st.toggle(f"EDIT", key=f"tg_{key}"):
+                        new_txt = st.text_area("Markdown:", st.session_state.db["content"][key], height=250, key=f"area_{key}")
+                        st.session_state.db["content"][key] = new_txt
+                    else:
+                        st.markdown(st.session_state.db["content"][key])
 
-        # CARD: ROUTINE
-        with mui.Card(key="routine", sx={"display": "flex", "flexDirection": "column", "bgcolor": "#161b22", "border": "1px solid #f39c12"}):
-            mui.CardHeader(title="📋 ROUTINE QUOTIDIANA", sx={"color": "#f39c12"})
-            with mui.CardContent(sx={"flex": 1, "overflow": "auto", "color": "white"}):
-                html.div("Checklist mattutina e obiettivi.")
+st.caption("💡 Trascina i bordi delle card per ridimensionarle. Clicca sul titolo per spostarle.")

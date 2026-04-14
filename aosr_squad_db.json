@@ -18,5 +18,39 @@
     "news": "Buonsalve \n\nTazzina!",
     "s6": "### \u2694\ufe0f SEASON 6",
     "academy": "Prova ",
-    "drone": "### \ud83e\udd16 TECH"
+    "drone": "### \ud83e\udd16 TECH",
+    "boxes": [
+        {
+            "l": "MEMBRI",
+            "v": "100/100"
+        },
+        {
+            "l": "POTENZA S1",
+            "v": "0M"
+        },
+        {
+            "l": "RANK",
+            "v": "#0"
+        }
+    ],
+    "meta": {
+        "t1": "Tier List",
+        "t2": "![Immagine](https://raw.githubusercontent.com/MasterMB-IT/AOSR/main/img/2026-Ferrari-SF-26-002-1080.jpg)",
+        "t3": "Counter"
+    },
+    "tech": {
+        "t1": "Ricerche",
+        "t2": "Gear Eroi",
+        "t3": "Drone"
+    },
+    "decors": {
+        "t1": "Skin & Set",
+        "t2": "Statue",
+        "t3": "Investimenti"
+    },
+    "routine": {
+        "t1": "Checklist",
+        "t2": "Eventi",
+        "t3": "Reset"
+    }
 }

@@ -18,5 +18,43 @@
     "content": {
         "news": "### \ud83d\udce1 TERMINALE TITAN\nUsa il tasto EDIT per configurare.",
         "meta": "### \u2694\ufe0f META ANALISI\nIncolla qui il codice immagine."
+    },
+    "config": {
+        "motto": "HONOR - STRENGTH - STRATEGY"
+    },
+    "boxes": [
+        {
+            "l": "MEMBRI",
+            "v": "0"
+        },
+        {
+            "l": "POTENZA",
+            "v": "0M"
+        },
+        {
+            "l": "RANK",
+            "v": "#0"
+        }
+    ],
+    "news": "### \ud83d\udea9 DIRETTIVE\nInserire ordini qui.",
+    "meta": {
+        "t1": "![Titolo](https://raw.githubusercontent.com/MasterMB-IT/AOSR/main/img/hq720.jpg)",
+        "t2": "",
+        "t3": ""
+    },
+    "tech": {
+        "t1": "",
+        "t2": "",
+        "t3": ""
+    },
+    "decors": {
+        "t1": "",
+        "t2": "",
+        "t3": ""
+    },
+    "routine": {
+        "t1": "",
+        "t2": "",
+        "t3": ""
     }
 }

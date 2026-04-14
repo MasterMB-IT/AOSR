@@ -10,22 +10,47 @@ REPO_NAME = st.secrets.get("REPO_NAME", "")
 BRANCH = "main"
 DB_FILE = "aosr_master_db.json"
 
-st.set_page_config(page_title="AOSR MASTER ARCHITECT", layout="wide")
+# --- CONFIGURAZIONE PAGINA ---
+st.set_page_config(page_title="AOSR COMMAND CENTER", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS CUSTOM ---
+# --- UI DESIGN (CSS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+    
     .stApp { background: #05070a; color: white; font-family: 'Rajdhani', sans-serif; }
-    .section-card {
-        background: rgba(22, 27, 34, 0.7); padding: 25px; border-radius: 15px;
-        border-left: 5px solid #f39c12; margin-bottom: 20px; border: 1px solid #30363d;
+    
+    /* Stile Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #0d1117;
+        border-right: 2px solid #f39c12;
     }
-    .edit-box { background: #1c2128; border: 1px dashed #f39c12; padding: 10px; border-radius: 10px; margin-bottom: 10px; }
+    
+    /* Titoli Sezioni nel corpo */
+    .section-header {
+        font-family: 'Orbitron', sans-serif;
+        color: #f39c12;
+        padding: 10px;
+        border-bottom: 2px solid #f39c12;
+        margin-bottom: 20px;
+        text-shadow: 0 0 10px #f39c12;
+    }
+
+    .section-card {
+        background: rgba(22, 27, 34, 0.8); 
+        padding: 25px; 
+        border-radius: 15px;
+        border: 1px solid #30363d;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    
+    /* Bottoni Sidebar */
+    .stRadio [data-testid="stWidgetLabel"] { display: none; }
+    div[role="radiogroup"] { gap: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- ENGINE ---
+# --- CORE ENGINE ---
 def load_db():
     try:
         url = f"https://api.github.com/repos/{REPO_NAME}/contents/{DB_FILE}?t={int(time.time())}"
@@ -34,10 +59,9 @@ def load_db():
             return json.loads(base64.b64decode(res.json()['content']).decode())
     except: pass
     return {
-        "motto": "HONOR - STRENGTH",
         "sections": {
-            "METE": {"titolo": "⚔️ ANALISI META", "tabs": [{"label": "Tier List", "content": ""}]},
-            "TECH": {"titolo": "🧬 TECNOLOGIE", "tabs": [{"label": "Ricerche", "content": ""}]}
+            "DASHBOARD": {"titolo": "📡 DASHBOARD OPERATIVA", "tabs": [{"label": "Status", "content": "Sistema Attivo."}]},
+            "META": {"titolo": "⚔️ ANALISI TATTICA", "tabs": [{"label": "Sinergie", "content": ""}]}
         }
     }
 
@@ -47,79 +71,85 @@ def save_db(data):
     r = requests.get(url, headers=headers)
     sha = r.json().get("sha") if r.status_code == 200 else None
     content = base64.b64encode(json.dumps(data, indent=4).encode()).decode()
-    payload = {"message": "Master Update", "content": content, "sha": sha}
+    payload = {"message": "Update Layout", "content": content, "sha": sha}
     if requests.put(url, json=payload, headers=headers).status_code in [200, 201]:
-        st.toast("✅ SISTEMA AGGIORNATO", icon="🛡️")
-        time.sleep(1)
+        st.toast("✅ ARCHIVIO AGGIORNATO", icon="🛰️")
+        time.sleep(0.5)
         st.rerun()
 
 if 'db' not in st.session_state:
     st.session_state.db = load_db()
 
-# --- HEADER & MASTER SWITCH ---
-c1, c2, c3 = st.columns([2, 1, 1])
-with c1:
-    st.markdown(f"<h1 style='color:#f39c12; font-family:Orbitron;'>AOSR OVERLORD</h1>", unsafe_allow_html=True)
-with c2:
-    mode = st.toggle("🛠️ MODALITÀ ARCHITETTO (EDIT)", value=False)
-with c3:
-    if st.button("💾 SALVA CONFIGURAZIONE", use_container_width=True):
-        save_db(st.session_state.db)
-
-# --- TOOL IMMAGINI NELLA SIDEBAR ---
+# --- SIDEBAR: MENU TATTICO ---
 with st.sidebar:
-    st.title("🖼️ MEDIA CENTER")
-    img_file = st.file_uploader("Carica Immagine", type=['png','jpg'])
-    if img_file and st.button("GENERA CODICE"):
-        # Logica upload veloce (usa cartella img/)
-        path = f"img/{img_file.name}"
-        b64 = base64.b64encode(img_file.getvalue()).decode()
-        requests.put(f"https://api.github.com/repos/{REPO_NAME}/contents/{path}", 
-                     json={"message":"img","content":b64}, headers={"Authorization":f"token {GITHUB_TOKEN}"})
-        st.code(f"![Img](https://raw.githubusercontent.com/{REPO_NAME}/{BRANCH}/{path})")
+    st.markdown(f"<h1 style='color:#f39c12; font-family:Orbitron; font-size:22px;'>AOSR COMMAND</h1>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # Switch Architetto
+    mode = st.toggle("🛠️ ARCHITETTO", value=False)
+    
+    st.markdown("### ⚡ NAVIGAZIONE RAPIDA")
+    # Generiamo dinamicamente le opzioni del menu dalle sezioni del DB
+    options = list(st.session_state.db["sections"].keys())
+    # Se siamo in modalità architetto, aggiungiamo una voce per gestire le sezioni
+    selected_sec = st.radio("Scegli Settore:", options)
+    
+    st.markdown("---")
+    if st.button("💾 SALVA MODIFICHE", use_container_width=True):
+        save_db(st.session_state.db)
+    
+    # Media Manager integrato in basso
+    with st.expander("🖼️ MEDIA MANAGER"):
+        img = st.file_uploader("Upload", type=['png','jpg'])
+        if img:
+            path = f"img/{img.name}"
+            b64 = base64.b64encode(img.getvalue()).decode()
+            requests.put(f"https://api.github.com/repos/{REPO_NAME}/contents/{path}", 
+                         json={"message":"img","content":b64}, headers={"Authorization":f"token {GITHUB_TOKEN}"})
+            st.code(f"![Img](https://raw.githubusercontent.com/{REPO_NAME}/{BRANCH}/{path})")
 
-# --- RENDER DINAMICO ---
-for sec_id, sec_data in list(st.session_state.db["sections"].items()):
-    with st.container():
-        # Titolo Sezione Editabile
+# --- AREA DI LAVORO CENTRALE ---
+sec_data = st.session_state.db["sections"][selected_sec]
+
+# Titolo Sezione con possibilità di rinomina se in modalità ARCHITETTO
+if mode:
+    new_title = st.text_input("Rinomina questa Sezione:", sec_data["titolo"])
+    sec_data["titolo"] = new_title
+    if st.button("🚀 AGGIUNGI NUOVA SEZIONE PRINCIPALE"):
+        new_id = f"NEW_{int(time.time())}"
+        st.session_state.db["sections"][new_id] = {"titolo": "NUOVO SETTORE", "tabs": [{"label": "Main", "content": ""}]}
+        st.rerun()
+    if st.button("🗑️ ELIMINA QUESTA INTERA SEZIONE"):
+        if len(st.session_state.db["sections"]) > 1:
+            del st.session_state.db["sections"][selected_sec]
+            st.rerun()
+else:
+    st.markdown(f"<div class='section-header'>{sec_data['titolo']}</div>", unsafe_allow_html=True)
+
+# Gestione Sottosezioni (Tabs)
+tabs_list = sec_data["tabs"]
+# Visualizzazione Tab
+tab_titles = [t["label"] for t in tabs_list]
+if mode: tab_titles.append("➕")
+
+tabs = st.tabs(tab_titles)
+
+for i, t in enumerate(tabs_list):
+    with tabs[i]:
         if mode:
-            c_tit, c_del = st.columns([0.9, 0.1])
-            sec_data["titolo"] = c_tit.text_input(f"Titolo Sezione {sec_id}", sec_data["titolo"], key=f"title_{sec_id}")
-            if c_del.button("🗑️", key=f"del_sec_{sec_id}"):
-                del st.session_state.db["sections"][sec_id]
+            t["label"] = st.text_input(f"Titolo Tab {i+1}", t["label"], key=f"lab_{selected_sec}_{i}")
+            t["content"] = st.text_area("Contenuto Markdown/Immagini:", t["content"], height=400, key=f"txt_{selected_sec}_{i}")
+            if st.button(f"Rimuovi Tab {t['label']}", key=f"del_{selected_sec}_{i}"):
+                sec_data["tabs"].pop(i)
                 st.rerun()
         else:
-            st.header(sec_data["titolo"])
+            st.markdown(f"<div class='section-card'>", unsafe_allow_html=True)
+            st.markdown(t["content"])
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # Gestione Tabs
-        tabs_list = sec_data["tabs"]
-        tab_obj = st.tabs([t["label"] for t in tabs_list] + (["➕ Aggiungi Tab"] if mode else []))
-
-        for i, t in enumerate(tabs_list):
-            with tab_obj[i]:
-                st.markdown("<div class='section-card'>", unsafe_allow_html=True)
-                if mode:
-                    t["label"] = st.text_input("Nome Sottosezione:", t["label"], key=f"lab_{sec_id}_{i}")
-                    t["content"] = st.text_area("Contenuto (Markdown/Immagini):", t["content"], height=300, key=f"cont_{sec_id}_{i}")
-                    if st.button(f"Elimina {t['label']}", key=f"del_tab_{sec_id}_{i}"):
-                        sec_data["tabs"].pop(i)
-                        st.rerun()
-                else:
-                    st.markdown(t["content"])
-                st.markdown("</div>", unsafe_allow_html=True)
-        
-        # Logica per aggiungere nuovo Tab
-        if mode and len(tab_obj) > len(tabs_list):
-            with tab_obj[-1]:
-                if st.button("➕ CREA NUOVA SOTTOSEZIONE", key=f"add_tab_{sec_id}"):
-                    sec_data["tabs"].append({"label": "Nuova Tab", "content": ""})
-                    st.rerun()
-
-st.divider()
-
-# --- AGGIUNGI NUOVA SEZIONE PRINCIPALE ---
-if mode:
-    if st.button("🚀 AGGIUNGI NUOVA SEZIONE PRINCIPALE"):
-        new_id = f"SEC_{int(time.time())}"
-        st.session_state.db["sections"][new_id] = {"titolo": "NUOVA SEZIONE", "tabs": [{"label": "Inizio", "content": ""}]}
-        st.rerun()
+# Tasto aggiunta tab
+if mode and len(tabs) > len(tabs_list):
+    with tabs[-1]:
+        if st.button("➕ CREA NUOVA TAB QUI"):
+            sec_data["tabs"].append({"label": "Nuovo", "content": ""})
+            st.rerun()

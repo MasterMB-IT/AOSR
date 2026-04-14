@@ -1,0 +1,38 @@
+{
+    "layout": [
+        {
+            "i": "news",
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 2
+        },
+        {
+            "i": "meta",
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+        },
+        {
+            "i": "tech",
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 4
+        },
+        {
+            "i": "routine",
+            "x": 0,
+            "y": 6,
+            "w": 12,
+            "h": 3
+        }
+    ],
+    "content": {
+        "news": "### \ud83d\udce1 TERMINALE ATTIVO\nBenvenuto Comandante. Trascina le card per configurare la dashboard.",
+        "meta": "### \u2694\ufe0f META SQUAD\nIncolla qui le tue sinergie.",
+        "tech": "### \ud83e\uddec TECNOLOGIE\nPianificazione ricerche.",
+        "routine": "### \ud83d\udccb ROUTINE\nChecklist giornaliera."
+    }
+}
